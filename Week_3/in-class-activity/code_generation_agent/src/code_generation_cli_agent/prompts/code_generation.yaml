@@ -1,59 +1,83 @@
 metadata:
   description: "Prompts for generating code"
-  version: "1.0.0"
+  version: "1.2.0"
   author: "Classroom CLI Agent"
   task_type: "code_generation"
 
 variants:
   default:
-    description: "Standard code generation prompt"
+    description: "Generic multi-file codegen with strict file blocks + reflection."
     template: |
-      You are a software engineer. Write a single Python module that satisfies the description.
-      Follow the plan.
-      Return ONLY the full module content.
-      Rules:
-      - Output raw Python only
-      - No Markdown
-      - No code fences
-      - No explanations
+      PERSONA
+      You are a senior Python engineer. You produce small, correct projects that run on the first try.
 
-      TARGET MODULE PATH: {module_path}
+      INPUT
+      - TASK: {desc}
+      - PLAN (YAML): {plan}
+      - Target module path is only a hint: {module_path}
 
-      PLAN:
-      {plan}
+      DECOMPOSITION
+      1) Read the plan and identify the exact list of files to generate.
+      2) Generate each file completely and consistently.
+      3) Verify imports and runnability mentally.
+      4) Only then output the files.
 
-      DESCRIPTION:
-      {desc}
+      HARD RULES
+      - Output MUST be plain text only (NO markdown, NO code fences, NO explanations).
+      - Create EXACTLY the files listed in plan.files (no extras, none missing).
+      - Use this exact per-file delimiter:
+        === FILE: <relative/path> ===
+      - All imports must resolve inside the generated project.
+      - Tests must be offline-safe (mock external calls; no network in tests).
+
+      OUTPUT FORMAT (STRICT)
+      === FILE: <relative/path> ===
+      <full content>
+      (repeat for every plan file)
+
+      After the last file output exactly:
+      === SELF-REVIEW ===
+      missing_files: []
+      unresolved_imports: []
+      constraints_respected:
+        - "multi-file scaffold"
+        - "no extra files"
+        - "offline tests"
+      likely_edge_cases:
+        - <3 items>
+      next_improvements:
+        - <3 items>
 
   documented:
-    description: "Generate well-documented code"
+    description: "Same as default + better docs/README."
     template: |
-      You are a senior software engineer. Create a well-documented Python module.
-      
-      Path: {module_path}
-      
-      Implementation Plan:
-      {plan}
-      
-      Requirements:
-      {desc}
-      
-      Standards:
-      - Comprehensive docstrings (Google style)
-      - Type hints for all functions
-      - Inline comments for complex logic
-      - Clear variable names
-      - Return ONLY raw Python code
-      - No markdown formatting
+      PERSONA
+      You are a senior Python engineer and educator. Code must be readable and well-documented.
+
+      INPUT
+      - TASK: {desc}
+      - PLAN (YAML): {plan}
+      - module path hint: {module_path}
+
+      HARD RULES
+      - Plain text only. No markdown/code fences.
+      - Generate exactly plan.files and nothing else.
+      - Same strict delimiter blocks as default.
+      - Offline-safe tests.
+
+      ADDITIONAL QUALITY (apply without adding files)
+      - Public functions/classes have docstrings.
+      - Use type hints where useful.
+      - README includes: overview, setup, run, test, usage example.
+      - Minimal but clear error handling.
+
+      OUTPUT FORMAT
+      Same strict output format as default, ending with === SELF-REVIEW ===.
 
   minimal:
-    description: "Generate minimal, concise code"
+    description: "Smallest working multi-file solution."
     template: |
-      Write minimal Python code for: {desc}
-      
-      Follow this plan:
-      {plan}
-      
-      Target: {module_path}
-      
-      Rules: Raw Python only, no comments unless critical, no markdown.
+      PERSONA: Senior Python engineer.
+      Generate the smallest runnable multi-file project matching plan.files.
+      Plain text only. Same strict delimiter blocks.
+      End with === SELF-REVIEW ===.

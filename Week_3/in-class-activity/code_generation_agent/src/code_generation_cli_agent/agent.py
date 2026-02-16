@@ -9,16 +9,17 @@ from .tools import Tools
 from .types import AgentConfig, RunResult
 from .utils import strip_code_fences
 
+
 class Agent:
     def __init__(self, cfg: AgentConfig):
         self.cfg = cfg
         self.repo = Path(cfg.repo).resolve()
         self.tools = Tools(self.repo)
         self.prompt_manager = PromptManager()
-        
+
         # Default prompt variants
-        self.planning_variant = 'default'
-        self.code_gen_variant = 'default'
+        self.planning_variant = "default"
+        self.code_gen_variant = "default"
 
     def _log(self, message: Any) -> None:
         if self.cfg.verbose:
@@ -44,37 +45,46 @@ class Agent:
 
     def create_program(self, desc: str, module_path: str) -> RunResult:
         """Create a program module.
-        
+
         Steps:
         1) produce a plan
         2) draft code
-        3) write to disk
+        3) write to disk (multi-file if blocks are present, else single file)
         """
         run = self._multi_step_chain()
 
         # Plan
         p1 = self.prompt_manager.get_prompt(
-            'planning',
+            "planning",
             self.planning_variant,
             desc=desc,
-            module_path=module_path
+            module_path=module_path,
         )
         self._log(p1)
-        plan = run(p1).strip()
+        plan = (run(p1) or "").strip()
         if not plan:
             return RunResult(False, "Model returned empty plan.")
 
         # Draft code
         p2 = self.prompt_manager.get_prompt(
-            'code_generation',
+            "code_generation",
             self.code_gen_variant,
             desc=desc,
             module_path=module_path,
-            plan=plan
+            plan=plan,
         )
         self._log(p2)
-        draft_raw = run(p2)
+        draft_raw = run(p2) or ""
         self._log(draft_raw)
+
+        # Multi-file path: if the model returned === FILE: ... === blocks,
+        # write all of them relative to the repo root.
+        written = self.tools.write_from_blocks(draft_raw)
+        if written:
+            msg = "Wrote files:\n" + "\n".join(f"- {p}" for p in written)
+            return RunResult(True, msg)
+
+        # Fallback: single-file behavior (backwards compatible)
         draft = strip_code_fences(draft_raw)
         if not draft.strip():
             return RunResult(False, "Model returned empty module draft.")
@@ -99,7 +109,7 @@ class Agent:
     def list_available_prompts(self) -> dict[str, list[str]]:
         """List all available prompt tasks and their variants."""
         tasks = self.prompt_manager.list_available_tasks()
-        result = {}
+        result: dict[str, list[str]] = {}
         for task in tasks:
             result[task] = self.prompt_manager.list_variants(task)
         return result

@@ -1,53 +1,106 @@
 metadata:
   description: "Prompts for creating implementation plans"
-  version: "1.0.0"
+  version: "1.2.0"
   author: "Classroom CLI Agent"
   task_type: "planning"
 
 variants:
   default:
-    description: "Standard planning prompt for code generation"
+    description: "Generic multi-file planning with persona + decomposition + reflection."
     template: |
-      You are a senior software engineer. Create a short, actionable implementation plan with ordered steps.
-      
-      Constraints:
-      - Keep the solution minimal and readable
-      - Assume standard library only unless the description requires otherwise
-      - Do not write code yet
-      - Output plain text only
+      PERSONA
+      You are a senior software engineer and architecture reviewer. You design small projects that run on the first try.
 
-      TARGET MODULE PATH: {module_path}
-
-      DESCRIPTION:
+      TASK
       {desc}
+
+      CONTEXT
+      - Target module path is only a hint: {module_path}
+      - The task text may be short/underspecified. Make reasonable assumptions.
+
+      DECOMPOSITION REQUIREMENTS
+      Produce a plan that is suitable for ANY of these: CLI app, Python library, Streamlit app, Flask REST API.
+
+      HARD RULES
+      - Do NOT write code.
+      - Output MUST be valid YAML only (no markdown, no backticks).
+      - Always plan for a MULTI-FILE scaffold unless explicitly forbidden.
+      - Must include: README.md, .gitignore, dependency file (requirements.txt or pyproject.toml), and tests (pytest) when feasible.
+      - Prefer standard library; add third-party deps only when clearly required by the task.
+
+      OUTPUT YAML (exact keys)
+      project:
+        name: <short_slug>
+        type: <streamlit_app|flask_api|python_library|cli_app>
+        summary: <1-2 sentences>
+        python_version: ">=3.10"
+      commands:
+        install: <command>
+        run: <command>
+        test: <command>
+      dependencies:
+        runtime: [<packages>]
+        dev: [pytest]
+      files:
+        - path: <relative/path>
+          kind: <python|markdown|text|config>
+          purpose: <1 sentence>
+          must_include: [<1-5 key items>]
+      implementation_steps:
+        - <step 1>
+        - <step 2>
+      edge_cases:
+        - <edge case 1>
+        - <edge case 2>
+      acceptance_criteria:
+        - <verifiable check 1>
+        - <verifiable check 2>
+      reflection:
+        assumptions:
+          - <assumption 1>
+        risks:
+          - <risk 1>
+        verification:
+          - <how to confirm plan is runnable>
+
+      TYPE INFERENCE (apply silently)
+      - If task mentions "streamlit" => streamlit_app (entrypoint app.py)
+      - If mentions "flask" or "api" or "rest" => flask_api (app package + tests)
+      - If mentions "library" or "cache" or "queue" or "algorithm" => python_library
+      - Otherwise => cli_app
 
   detailed:
-    description: "More detailed planning with architecture considerations"
+    description: "More detailed architecture + test plan; still generic and structured."
     template: |
-      You are a senior software architect. Create a comprehensive implementation plan.
-      
-      TARGET MODULE PATH: {module_path}
-      
-      REQUIREMENTS:
+      PERSONA
+      You are a senior software architect with a test-first mindset.
+
+      TASK
       {desc}
-      
-      Your plan should include:
-      1. Architecture overview
-      2. Key components and their responsibilities
-      3. Data structures needed
-      4. Function signatures
-      5. Dependencies (prefer standard library)
-      6. Edge cases to handle
-      7. Testing considerations
-      
-      Output as numbered steps in plain text.
+
+      CONTEXT
+      - Target module path hint: {module_path}
+
+      HARD RULES
+      - YAML only. No code.
+      - Multi-file scaffold required.
+      - Must include README.md, .gitignore, dependency file, tests (pytest) when feasible.
+      - Minimize dependencies.
+
+      OUTPUT YAML = same schema as default PLUS:
+      testing_strategy:
+        unit: [<unit test targets>]
+        integration: [<integration test targets if applicable>]
+        mocking: [<what must be mocked>]
+      design_notes:
+        modules: [<major modules>]
+        data_flow: <1-3 sentences>
 
   minimal:
-    description: "Quick planning for simple tasks"
+    description: "Short plan (3–7 steps) but still multi-file and includes reflection."
     template: |
-      Create a brief plan (3-5 steps) for implementing:
-      {desc}
-      
-      Target file: {module_path}
-      
-      Keep it simple and actionable.
+      PERSONA: Senior engineer.
+      TASK: {desc}
+      Output YAML only using the default schema.
+      Keep implementation_steps to 3–7 items.
+      Keep dependencies minimal.
