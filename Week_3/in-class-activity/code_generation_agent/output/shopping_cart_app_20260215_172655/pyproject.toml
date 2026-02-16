@@ -1,0 +1,12 @@
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "B", "C4", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-report=html"
+testpaths = ["tests"]
